@@ -1,0 +1,172 @@
+// 模块名, 建议小写 linux 命令风格: echo_test
+package total_margin;
+
+// 引入公共的rpc定义文件
+import "srpc.proto";
+option cc_generic_services = true;
+option py_generic_services = true;
+option java_generic_services = true;
+
+// 全局margin总量
+// 可以修改的项 用 <*> 表示
+message total_margin_data
+{
+    optional uint64 id                      = 1;        // PRI KEY, 自增id
+    optional uint32 market                  = 2;        // 市场ID， 1 HK，2 US，3 USOPT
+    optional string currency                = 3;        // margin量计价货币, HKD, USD etc
+    optional string used_cash_margin        = 4;        // 已使用现金margin量 (已废弃)
+    optional string used_short_margin       = 5;        // 已使用融券margin量
+    optional string used_margin_total       = 6;        // 已使用margin总量 = 所有人的欠款(|Min(CashT - 卖空平仓担保额, 0)|)之和
+    optional string margin_total_limit      = 7;        // <*> 市场margin总量上限 
+    optional string protect_ratio           = 8;        // <*> 全局保护系数
+    optional uint64 create_time             = 9;        // 创建时间
+    optional uint64 update_time             = 10;       // 更新时间
+    
+    optional uint64 acct_cnt                = 11;       // margin账户总数,从User_Margin_Info表统计
+    optional int32  warn_acct_cnt           = 12;       // 处于margin call状态账户数, status = 1, 从User_Margin_Info表统计
+    optional int32  force_close_acct_cnt    = 13;       // 处于强平状态账户数，status = 2,从User_Margin_Info表统计
+    optional string debt_amount             = 14;       // margin call追收总额，status = 1 or 2,从User_Margin_Info表的im_recover统计
+    optional string cash_total              = 15;       // 可用现金总额，所有cash>0 的用户的现金总额
+    optional uint64 loan_acct_cnt           = 16;       // 使用了信贷的账户数，欠款(|Min(CashT - 卖空平仓担保额, 0)|) > 0
+    optional string max_loan_total          = 17;       // 最大信贷总额，个人最大授信额（手动配置） 累计 + 剩余用户 * 默认最大授信额
+    optional string short_total_limit       = 18;       // <*> 全局融券总额上限
+    optional string short_protect_ratio     = 19;       // <*>  全局融券保护系数
+    
+    optional string cross_limit             = 20;       // <*> 跨市场融资上限
+    optional string used_cross              = 21;       // 已使用跨市场融资额
+    optional string cm_im                   = 22;       // <*> 初始货币保证金
+    optional string cm_alm                  = 23;       // <*> 提前通知货币保证金
+    optional string cm_mcm                  = 24;       // <*> margin call货币保证金
+    optional string cm_mm                   = 25;       // <*> 维持货币保证金
+    optional string futu_interest_rate      = 26;       // 富途融资利率
+    optional string bank_interest_rate      = 27;       // 银行融资利率
+    
+    optional string reserve_margin_limit    = 28;       // <*>margin预留上限，避免被新股认购等占用
+    optional string order_limit             = 29;       // <*>单笔金额上限
+    optional int32 unsettle_apply_switch    = 30;       // <*>融资户使用融资认购时，是否使用未交收，0 不使用，1 使用
+    optional string used_unsettle_apply     = 31;       // 已使用未交收的总量
+    optional string cross_margin_limit      = 32;       // <*>跨市场margin预留上限，避免被新股认购等占用
+}
+
+message hk_extend_info
+{
+    optional uint64 id                              = 1;       // PRI KEY, 自增id
+    optional string multiplier_exchange             = 2;       // 香港交易所客户按金乘数(期权)
+    optional string multiplier_im                   = 3;       // 初始保证金乘数(期权)
+    optional string multiplier_alm                  = 4;       // 提前通知保证金乘数(期权)
+    optional string multiplier_mcm                  = 5;       // Margin Call保证金乘数(期权)
+    optional string multiplier_mm                   = 6;       // 维持保证金乘数(期权)
+    optional uint64 update_time                     = 7;       // 更新时间
+    optional string multiplier_exchange_futures     = 8;       // 香港交易所客户按金乘数(期货)
+    optional string multiplier_im_futures           = 9;       // 初始保证金乘数(期货)
+    optional string multiplier_alm_futures          = 10;       // 提前通知保证金乘数(期货)
+    optional string multiplier_mcm_futures          = 11;       // Margin Call保证金乘数(期货)
+    optional string multiplier_mm_futures           = 12;       // 维持保证金乘数(期货)
+}
+
+message capital_info
+{
+    optional uint64 id                      = 1; // PRI KEY, 自增id
+    optional string current_capital         = 2; // 当前资本金
+    optional string alert_ratio             = 3; // 预警比率
+}
+
+message GetMarginTotalReq
+{
+    repeated uint32 markets                 = 1;        // 市场列表
+}
+
+message GetMarginTotalRsp
+{
+    repeated total_margin_data    totals       = 1;    // margin总量列表
+    optional int32                err_code     = 2;    // 0 成功，其他失败
+    optional string               err_msg      = 3;    // 错误信息
+}
+
+message UpdateMarginTotalReq
+{
+    repeated total_margin_data    totals       = 1;    // 可以修改的项为有 <*> 标识的
+}
+
+message UpdateMarginTotalRsp
+{
+    optional int32                err_code     = 1;    // 0 成功，其他失败
+    optional string               err_msg      = 2;    // 错误信息
+}
+
+message GetHkExtendInfoReq
+{
+}
+
+message GetHkExtendInfoRsp
+{
+    optional hk_extend_info       info         = 1;    // 香港市场扩展信息
+    optional int32                err_code     = 2;    // 0 成功，其他失败
+    optional string               err_msg      = 3;    // 错误信息
+}
+
+message UpdateHkExtendInfoReq
+{
+    optional hk_extend_info       info       = 1;
+}
+
+message UpdateHkExtendInfoRsp
+{
+    optional int32                err_code     = 1;    // 0 成功，其他失败
+    optional string               err_msg      = 2;    // 错误信息
+}
+
+//获取当前资本金数目和预警比率
+message GetCapitalInfoReq{
+}
+
+message GetCapitalInfoRsp
+{
+    optional capital_info         info         = 1;    // 资本金信息
+    optional int32                err_code     = 2;    // 0 成功，其他失败
+    optional string               err_msg      = 3;    // 错误信息
+}
+
+message UpdateCapitalInfoReq
+{
+    optional capital_info         info         = 1;
+}
+
+message UpdateCapitalInfoRsp
+{
+    optional int32                err_code     = 1;    // 0 成功，其他失败
+    optional string               err_msg      = 2;    // 错误信息
+}
+
+//========================================对外接口======================================
+// 定义服务, 可以定义多个条目 建议首字符大写
+service MarginTotalService
+{
+    option (srpc.service_option_id) = 0xa09;  // 命令字ID
+    
+    rpc GetMarginTotalMethod(GetMarginTotalReq) returns (GetMarginTotalRsp)
+    {
+        option (srpc.method_option_id) = 0x1; // 子命令字ID
+    }
+    rpc UpdateMarginTotalMethod(UpdateMarginTotalReq) returns (UpdateMarginTotalRsp)
+    {
+        option (srpc.method_option_id) = 0x2; // 子命令字ID
+    }
+
+    rpc GetHkExtendInfoMethod(GetHkExtendInfoReq) returns (GetHkExtendInfoRsp)
+    {
+        option (srpc.method_option_id) = 0x3; // 子命令字ID
+    }
+    rpc UpdateHkExtendInfoMethod(UpdateHkExtendInfoReq) returns (UpdateHkExtendInfoRsp)
+    {
+        option (srpc.method_option_id) = 0x4; // 子命令字ID
+    }
+    rpc GetCapitalInfoMethod(GetCapitalInfoReq) returns (GetCapitalInfoRsp)
+    {
+        option (srpc.method_option_id) = 0x5; // 子命令字ID
+    }
+    rpc UpdateCapitalInfoMethod(UpdateCapitalInfoReq) returns (UpdateCapitalInfoRsp)
+    {
+        option (srpc.method_option_id) = 0x6; // 子命令字ID
+    }
+}
